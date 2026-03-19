@@ -7,6 +7,8 @@ import { GitCommit, CircleDot, CheckCircle2, AlertCircle } from 'lucide-react'
 
 const OWNER = 'yasushi-dotcom'
 
+const ghFetch = (path) => fetch(`/api/github?path=${encodeURIComponent(path)}`).then(r => r.json())
+
 function priorityBadge(labels) {
   if (labels.some(l => l.name.toLowerCase().includes('high'))) return <Badge variant="destructive">High</Badge>
   if (labels.some(l => l.name.toLowerCase().includes('medium'))) return <Badge variant="secondary">Medium</Badge>
@@ -22,11 +24,11 @@ export default function Dashboard({ repo }) {
 
   useEffect(() => {
     setLoading(true)
-    const base = `https://api.github.com/repos/${OWNER}/${repo.name}`
+    const base = `repos/${OWNER}/${repo.name}`
     Promise.all([
-      fetch(`${base}/issues?state=all&per_page=10`).then(r => r.json()),
-      fetch(`${base}/commits?per_page=5`).then(r => r.json()),
-      fetch(base).then(r => r.json()),
+      ghFetch(`${base}/issues?state=all&per_page=10`),
+      ghFetch(`${base}/commits?per_page=5`),
+      ghFetch(base),
     ]).then(([issuesData, commitsData, repoData]) => {
       setIssues(Array.isArray(issuesData) ? issuesData : [])
       setCommits(Array.isArray(commitsData) ? commitsData : [])
