@@ -11,7 +11,7 @@ export default function App() {
   const [selectedRepo, setSelectedRepo] = useState(null)
 
   useEffect(() => {
-    fetch(`/api/github?path=${encodeURIComponent(`users/${OWNER}/repos?per_page=100&sort=updated`)}`)
+    fetch(`/api/github?path=${encodeURIComponent('user/repos?per_page=100&sort=updated')}`)
       .then(r => r.json())
       .then(data => {
         if (!Array.isArray(data)) return
