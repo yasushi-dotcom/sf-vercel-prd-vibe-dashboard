@@ -9,76 +9,139 @@ function getNode(id) {
   return nodes.find(n => n.id === id)
 }
 
-// Returns the point where a line from (sx,sy) exits the node box at (cx,cy)
-function clipToBox(cx, cy, tx, ty) {
-  const hw = NODE_W / 2 + 2
-  const hh = NODE_H / 2 + 2
-  const dx = tx - cx
-  const dy = ty - cy
-  if (dx === 0 && dy === 0) return [cx, cy]
-  const absDx = Math.abs(dx)
-  const absDy = Math.abs(dy)
-  let t
-  if (absDx === 0) t = hh / absDy
-  else if (absDy === 0) t = hw / absDx
-  else t = Math.min(hw / absDx, hh / absDy)
-  return [cx + dx * t, cy + dy * t]
+// ---- Elbow connector helpers ----
+
+// Determine orthogonal exit/entry points on the node box faces
+function getExitEntry(src, dst) {
+  const hw = NODE_W / 2
+  const hh = NODE_H / 2
+  const dx = dst.x - src.x
+  const dy = dst.y - src.y
+  const exitVertical = Math.abs(dy) >= Math.abs(dx)
+
+  let ex, ey, enx, eny
+  if (exitVertical) {
+    ex = src.x
+    ey = dy >= 0 ? src.y + hh : src.y - hh
+    enx = dst.x
+    eny = dy >= 0 ? dst.y - hh : dst.y + hh
+  } else {
+    ex = dx >= 0 ? src.x + hw : src.x - hw
+    ey = src.y
+    enx = dx >= 0 ? dst.x - hw : dst.x + hw
+    eny = dst.y
+  }
+
+  return { ex, ey, enx, eny, exitVertical }
+}
+
+// Z-shaped orthogonal path with rounded corners at each bend
+function buildElbowPath(ex, ey, enx, eny, exitVertical, r = 10) {
+  if (exitVertical) {
+    if (ex === enx) return `M ${ex},${ey} V ${eny}`
+    const midY = (ey + eny) / 2
+    const sx = enx > ex ? 1 : -1
+    const sy1 = midY > ey ? 1 : -1
+    const sy2 = eny > midY ? 1 : -1
+    return [
+      `M ${ex},${ey}`,
+      `V ${midY - sy1 * r}`,
+      `Q ${ex},${midY} ${ex + sx * r},${midY}`,
+      `H ${enx - sx * r}`,
+      `Q ${enx},${midY} ${enx},${midY + sy2 * r}`,
+      `V ${eny}`,
+    ].join(' ')
+  } else {
+    if (ey === eny) return `M ${ex},${ey} H ${enx}`
+    const midX = (ex + enx) / 2
+    const sy = eny > ey ? 1 : -1
+    const sx1 = midX > ex ? 1 : -1
+    const sx2 = enx > midX ? 1 : -1
+    return [
+      `M ${ex},${ey}`,
+      `H ${midX - sx1 * r}`,
+      `Q ${midX},${ey} ${midX},${ey + sy * r}`,
+      `V ${eny - sy * r}`,
+      `Q ${midX},${eny} ${midX + sx2 * r},${eny}`,
+      `H ${enx}`,
+    ].join(' ')
+  }
+}
+
+// Label sits at the midpoint of the middle (crossing) segment
+function getLabelPos(ex, ey, enx, eny, exitVertical) {
+  if (exitVertical) {
+    return { lx: (ex + enx) / 2, ly: (ey + eny) / 2 }
+  }
+  return { lx: (ex + enx) / 2, ly: (ey + eny) / 2 }
+}
+
+// Direction angle the path arrives at the entry point (last segment direction)
+function getEntryAngle(ex, ey, enx, eny, exitVertical) {
+  if (exitVertical) {
+    const sy2 = eny > (ey + eny) / 2 ? 1 : -1
+    return sy2 * Math.PI / 2
+  }
+  return enx > (ex + enx) / 2 ? 0 : Math.PI
+}
+
+// Direction the path leaves the exit point — reversed for the bidirectional src arrow
+function getExitAngle(ex, ey, enx, eny, exitVertical) {
+  if (exitVertical) {
+    const sy1 = (ey + eny) / 2 > ey ? 1 : -1
+    return -sy1 * Math.PI / 2
+  }
+  const sx1 = (ex + enx) / 2 > ex ? 1 : -1
+  return sx1 > 0 ? Math.PI : 0
 }
 
 function EdgeLine({ edge, isSelected, onClick }) {
   const src = getNode(edge.from)
   const dst = getNode(edge.to)
-  const [x1, y1] = clipToBox(src.x, src.y, dst.x, dst.y)
-  const [x2, y2] = clipToBox(dst.x, dst.y, src.x, src.y)
-  const mx = (x1 + x2) / 2
-  const my = (y1 + y2) / 2
-
-  // Perpendicular offset for the label so it doesn't sit on the line
-  const dx = x2 - x1
-  const dy = y2 - y1
-  const len = Math.sqrt(dx * dx + dy * dy) || 1
-  const perpX = (-dy / len) * 10
-  const perpY = (dx / len) * 10
+  const { ex, ey, enx, eny, exitVertical } = getExitEntry(src, dst)
+  const d = buildElbowPath(ex, ey, enx, eny, exitVertical)
+  const { lx, ly } = getLabelPos(ex, ey, enx, eny, exitVertical)
 
   const color = isSelected ? '#3b82f6' : '#94a3b8'
   const labelColor = isSelected ? '#1d4ed8' : '#64748b'
 
-  // Arrow tip at clip point — translate base back 8px so tip lands on box edge
-  const dstAngle = Math.atan2(y2 - y1, x2 - x1)
-  const dstTx = x2 - 8 * Math.cos(dstAngle)
-  const dstTy = y2 - 8 * Math.sin(dstAngle)
-  const srcAngle = Math.atan2(y1 - y2, x1 - x2)
-  const srcTx = x1 - 8 * Math.cos(srcAngle)
-  const srcTy = y1 - 8 * Math.sin(srcAngle)
+  const entryAngle = getEntryAngle(ex, ey, enx, eny, exitVertical)
+  const entryTx = enx - 8 * Math.cos(entryAngle)
+  const entryTy = eny - 8 * Math.sin(entryAngle)
+
+  const exitAngle = getExitAngle(ex, ey, enx, eny, exitVertical)
+  const exitTx = ex - 8 * Math.cos(exitAngle)
+  const exitTy = ey - 8 * Math.sin(exitAngle)
 
   return (
     <g style={{ cursor: 'pointer' }} onClick={onClick}>
-      {/* Invisible wide hit area */}
-      <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth={16} />
-      <line
-        x1={x1} y1={y1} x2={x2} y2={y2}
+      {/* Invisible thick hit area */}
+      <path d={d} fill="none" stroke="transparent" strokeWidth={14} />
+      <path
+        d={d}
+        fill="none"
         stroke={color}
         strokeWidth={isSelected ? 2 : 1.5}
         strokeDasharray={edge.bidirectional ? undefined : '6 3'}
       />
-      {/* Arrow at dst end (tip at clip point) */}
+      {/* Arrow at entry end */}
       <polygon
         points="0,-4 8,0 0,4"
         fill={color}
-        transform={`translate(${dstTx},${dstTy}) rotate(${dstAngle * 180 / Math.PI})`}
+        transform={`translate(${entryTx},${entryTy}) rotate(${entryAngle * 180 / Math.PI})`}
       />
-      {/* Arrow at src end for bidirectional */}
+      {/* Arrow at exit end for bidirectional */}
       {edge.bidirectional && (
         <polygon
           points="0,-4 8,0 0,4"
           fill={color}
-          transform={`translate(${srcTx},${srcTy}) rotate(${srcAngle * 180 / Math.PI})`}
+          transform={`translate(${exitTx},${exitTy}) rotate(${exitAngle * 180 / Math.PI})`}
         />
       )}
-      {/* Label */}
+      {/* Label at midpoint of crossing segment */}
       <text
-        x={mx + perpX}
-        y={my + perpY}
+        x={lx}
+        y={ly - 6}
         textAnchor="middle"
         dominantBaseline="middle"
         fontSize={10}
