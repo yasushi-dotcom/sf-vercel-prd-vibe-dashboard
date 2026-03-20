@@ -40,7 +40,7 @@ export default async function handler(req, res) {
   const results = await Promise.allSettled([
     checkStatusPage('https://www.githubstatus.com/api/v2/status.json'),
     checkStatusPage('https://www.vercel-status.com/api/v2/status.json'),
-    checkStatusPage('https://www.anthropicstatus.com/api/v2/status.json'),
+    checkStatusPage('https://status.claude.com/api/v2/status.json'),
     checkReachable('https://login.salesforce.com'),
   ])
 
