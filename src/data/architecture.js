@@ -2,7 +2,16 @@
 // No code changes needed in the diagram component itself
 
 export const NODE_W = 160
-export const NODE_H = 60
+export const NODE_H = 72
+
+// Vercel-style status colors and labels
+export const STATUS_CONFIG = {
+  ready:    { color: '#17c964', label: 'Ready' },
+  building: { color: '#f5a524', label: 'Building' },
+  error:    { color: '#f31260', label: 'Error' },
+  planned:  { color: '#71717a', label: 'Planned' },
+  paused:   { color: '#889096', label: 'Paused' },
+}
 
 export const layers = [
   { id: 'UI',       label: 'UI',       y1: 20,  y2: 135, color: '#eff6ff' },
@@ -17,6 +26,7 @@ export const nodes = [
     label: 'Vercel',
     sublabel: 'sf-vibe-dashboard.vercel.app',
     layer: 'UI',
+    status: 'ready',
     x: 580, y: 77,
     detail: {
       tech: ['React', 'Vite', 'Shadcn/ui', 'Serverless Functions (Node.js)'],
@@ -29,6 +39,7 @@ export const nodes = [
     label: 'GitHub',
     sublabel: 'yasushi-dotcom',
     layer: 'DevOps',
+    status: 'ready',
     x: 300, y: 235,
     detail: {
       tech: ['Git', 'GitHub Issues', 'GitHub Actions'],
@@ -41,6 +52,7 @@ export const nodes = [
     label: 'Local Machine',
     sublabel: 'Claude Code · SF CLI · git',
     layer: 'DevOps',
+    status: 'ready',
     x: 860, y: 235,
     detail: {
       tech: ['Claude Code', 'Salesforce CLI', 'Node.js', 'git'],
@@ -53,6 +65,7 @@ export const nodes = [
     label: 'Claude / MCP',
     sublabel: 'claude-sonnet-4-6',
     layer: 'AI',
+    status: 'ready',
     x: 580, y: 375,
     detail: {
       tech: ['Claude Sonnet 4.6', 'MCP (Model Context Protocol)', 'GitHub MCP server', 'Salesforce MCP server'],
@@ -65,6 +78,7 @@ export const nodes = [
     label: 'SF EP Dev',
     sublabel: 'my-dev-org · Enterprise',
     layer: 'Platform',
+    status: 'ready',
     x: 220, y: 520,
     detail: {
       tech: ['Salesforce Enterprise Edition', 'Apex', 'LWC', 'Flows', 'Triggers'],
@@ -77,6 +91,7 @@ export const nodes = [
     label: 'SF PS Dev',
     sublabel: 'Pro Suite dev org',
     layer: 'Platform',
+    status: 'ready',
     x: 580, y: 520,
     detail: {
       tech: ['Salesforce Pro Suite', 'Flows', 'Layouts', 'Custom Fields'],
@@ -89,6 +104,7 @@ export const nodes = [
     label: 'SF Starter Prod',
     sublabel: 'planned',
     layer: 'Platform',
+    status: 'planned',
     x: 940, y: 520,
     planned: true,
     detail: {

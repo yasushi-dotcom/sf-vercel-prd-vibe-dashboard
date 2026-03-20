@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { nodes, edges, layers, NODE_W, NODE_H } from '@/data/architecture'
+import { nodes, edges, layers, NODE_W, NODE_H, STATUS_CONFIG } from '@/data/architecture'
 import { X } from 'lucide-react'
 
 const SVG_W = 1160
@@ -160,6 +160,7 @@ function NodeBox({ node, isSelected, onClick }) {
   const borderColor = isSelected ? '#3b82f6' : node.planned ? '#cbd5e1' : '#e2e8f0'
   const fillColor = node.planned ? '#f8fafc' : 'white'
   const labelColor = node.planned ? '#94a3b8' : '#0f172a'
+  const status = STATUS_CONFIG[node.status] ?? STATUS_CONFIG.planned
 
   return (
     <g style={{ cursor: 'pointer' }} onClick={onClick}>
@@ -173,8 +174,9 @@ function NodeBox({ node, isSelected, onClick }) {
         strokeDasharray={node.planned ? '6 3' : undefined}
         filter={isSelected ? 'drop-shadow(0 0 6px #93c5fd)' : undefined}
       />
+      {/* Label */}
       <text
-        x={node.x} y={node.y - 9}
+        x={node.x} y={node.y - 14}
         textAnchor="middle"
         fontSize={13}
         fontWeight="600"
@@ -183,14 +185,33 @@ function NodeBox({ node, isSelected, onClick }) {
       >
         {node.label}
       </text>
+      {/* Sublabel */}
       <text
-        x={node.x} y={node.y + 10}
+        x={node.x} y={node.y + 2}
         textAnchor="middle"
         fontSize={10}
         fill="#64748b"
         style={{ userSelect: 'none' }}
       >
         {node.sublabel}
+      </text>
+      {/* Status indicator — Vercel style: dot + label */}
+      <circle
+        cx={node.x - 28}
+        cy={node.y + 19}
+        r={4}
+        fill={status.color}
+      />
+      <text
+        x={node.x - 21}
+        y={node.y + 19}
+        dominantBaseline="middle"
+        fontSize={9}
+        fill={status.color}
+        fontWeight="500"
+        style={{ userSelect: 'none' }}
+      >
+        {status.label}
       </text>
     </g>
   )
@@ -353,9 +374,17 @@ export default function ArchitectureDiagram() {
         <DetailPanel item={selectedEdge} type="edge" onClose={clearSelection} />
       )}
 
-      <p className="text-xs text-muted-foreground">
-        Dashed border = planned · Dashed line = one-directional · Solid line = bidirectional
-      </p>
+      {/* Legend */}
+      <div className="flex items-center gap-6 text-xs text-muted-foreground flex-wrap">
+        <span className="font-medium text-foreground">Legend</span>
+        {Object.entries(STATUS_CONFIG).map(([key, { color, label }]) => (
+          <span key={key} className="flex items-center gap-1.5">
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+            {label}
+          </span>
+        ))}
+        <span className="ml-4">Solid line = bidirectional · Dashed line = one-directional · Dashed border = planned</span>
+      </div>
     </div>
   )
 }
