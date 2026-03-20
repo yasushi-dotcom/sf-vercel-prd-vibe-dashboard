@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { nodes, edges, layers, NODE_W, NODE_H, STATUS_CONFIG } from '@/data/architecture'
-import { X } from 'lucide-react'
+import { X, RefreshCw } from 'lucide-react'
 
 const SVG_W = 1160
 const SVG_H = 620
@@ -154,13 +154,15 @@ function EdgeLine({ edge, isSelected, onClick }) {
   )
 }
 
-function NodeBox({ node, isSelected, onClick }) {
+function NodeBox({ node, isSelected, onClick, liveStatus, statusLoading }) {
   const x = node.x - NODE_W / 2
   const y = node.y - NODE_H / 2
   const borderColor = isSelected ? '#3b82f6' : node.planned ? '#cbd5e1' : '#e2e8f0'
   const fillColor = node.planned ? '#f8fafc' : 'white'
   const labelColor = node.planned ? '#94a3b8' : '#0f172a'
-  const status = STATUS_CONFIG[node.status] ?? STATUS_CONFIG.planned
+
+  const statusKey = liveStatus ?? node.status
+  const status = STATUS_CONFIG[statusKey] ?? STATUS_CONFIG.planned
 
   return (
     <g style={{ cursor: 'pointer' }} onClick={onClick}>
@@ -200,18 +202,22 @@ function NodeBox({ node, isSelected, onClick }) {
         cx={node.x - 28}
         cy={node.y + 19}
         r={4}
-        fill={status.color}
-      />
+        fill={statusLoading ? '#e2e8f0' : status.color}
+      >
+        {statusLoading && (
+          <animate attributeName="opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite" />
+        )}
+      </circle>
       <text
         x={node.x - 21}
         y={node.y + 19}
         dominantBaseline="middle"
         fontSize={9}
-        fill={status.color}
+        fill={statusLoading ? '#94a3b8' : status.color}
         fontWeight="500"
         style={{ userSelect: 'none' }}
       >
-        {status.label}
+        {statusLoading ? 'Checking…' : status.label}
       </text>
     </g>
   )
@@ -292,6 +298,23 @@ function DetailPanel({ item, type, onClose }) {
 export default function ArchitectureDiagram() {
   const [selectedNode, setSelectedNode] = useState(null)
   const [selectedEdge, setSelectedEdge] = useState(null)
+  const [statusMap, setStatusMap] = useState({})
+  const [statusLoading, setStatusLoading] = useState(true)
+  const [lastChecked, setLastChecked] = useState(null)
+
+  const fetchStatus = useCallback(() => {
+    setStatusLoading(true)
+    fetch('/api/status')
+      .then(r => r.json())
+      .then(data => {
+        setStatusMap(data)
+        setLastChecked(new Date())
+      })
+      .catch(() => {})
+      .finally(() => setStatusLoading(false))
+  }, [])
+
+  useEffect(() => { fetchStatus() }, [fetchStatus])
 
   const handleNodeClick = (node) => {
     setSelectedEdge(null)
@@ -310,9 +333,26 @@ export default function ArchitectureDiagram() {
 
   return (
     <div className="p-6 space-y-4">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">System Architecture</h2>
-        <p className="text-muted-foreground text-sm">Click a system box or connection line to see details</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">System Architecture</h2>
+          <p className="text-muted-foreground text-sm">Click a system box or connection line to see details</p>
+        </div>
+        <div className="flex items-center gap-3 pt-1 shrink-0">
+          {lastChecked && (
+            <span className="text-xs text-muted-foreground">
+              Checked {lastChecked.toLocaleTimeString()}
+            </span>
+          )}
+          <button
+            onClick={fetchStatus}
+            disabled={statusLoading}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50 border rounded px-2 py-1"
+          >
+            <RefreshCw className={`h-3 w-3 ${statusLoading ? 'animate-spin' : ''}`} />
+            {statusLoading ? 'Checking…' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
       <div className="border rounded-lg bg-card overflow-auto">
@@ -361,6 +401,8 @@ export default function ArchitectureDiagram() {
               node={node}
               isSelected={selectedNode?.id === node.id}
               onClick={(e) => { e.stopPropagation(); handleNodeClick(node) }}
+              liveStatus={statusMap[node.id]}
+              statusLoading={statusLoading}
             />
           ))}
         </svg>
