@@ -198,6 +198,7 @@ export const edges = [
     from: 'claude',
     to: 'sf-ep',
     label: 'SF MCP',
+    entryFace: 'top',
     detail: {
       protocol: 'MCP → Salesforce REST/Metadata API',
       auth: 'OAuth2 (via SF CLI)',

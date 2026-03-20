@@ -11,14 +11,32 @@ function getNode(id) {
 
 // ---- Elbow connector helpers ----
 
-// Determine orthogonal exit/entry points on the node box faces
-function getExitEntry(src, dst) {
+// Determine orthogonal exit/entry points on the node box faces.
+// edge.entryFace / edge.exitFace can override the auto-routing per-edge.
+function getExitEntry(src, dst, edge = {}) {
   const hw = NODE_W / 2
   const hh = NODE_H / 2
   const dx = dst.x - src.x
   const dy = dst.y - src.y
-  const exitVertical = Math.abs(dy) >= Math.abs(dx)
 
+  if (edge.entryFace) {
+    // Entry point is forced to a specific face
+    const faceMap = {
+      top:    [dst.x,      dst.y - hh],
+      bottom: [dst.x,      dst.y + hh],
+      left:   [dst.x - hw, dst.y     ],
+      right:  [dst.x + hw, dst.y     ],
+    }
+    const [enx, eny] = faceMap[edge.entryFace] ?? faceMap.top
+    // Force matching exit axis: vertical entry → vertical exit
+    const exitVertical = edge.entryFace === 'top' || edge.entryFace === 'bottom'
+    const ex = exitVertical ? src.x : (dx >= 0 ? src.x + hw : src.x - hw)
+    const ey = exitVertical ? (dy >= 0 ? src.y + hh : src.y - hh) : src.y
+    return { ex, ey, enx, eny, exitVertical }
+  }
+
+  // Default: auto-route based on dominant axis
+  const exitVertical = Math.abs(dy) >= Math.abs(dx)
   let ex, ey, enx, eny
   if (exitVertical) {
     ex = src.x
@@ -31,7 +49,6 @@ function getExitEntry(src, dst) {
     enx = dx >= 0 ? dst.x - hw : dst.x + hw
     eny = dst.y
   }
-
   return { ex, ey, enx, eny, exitVertical }
 }
 
@@ -77,7 +94,10 @@ function getLabelPos(ex, ey, enx, eny, exitVertical) {
 }
 
 // Direction angle the path arrives at the entry point (last segment direction)
-function getEntryAngle(ex, ey, enx, eny, exitVertical) {
+function getEntryAngle(ex, ey, enx, eny, exitVertical, entryFace) {
+  if (entryFace) {
+    return { top: Math.PI / 2, bottom: -Math.PI / 2, left: 0, right: Math.PI }[entryFace] ?? Math.PI / 2
+  }
   if (exitVertical) {
     const sy2 = eny > (ey + eny) / 2 ? 1 : -1
     return sy2 * Math.PI / 2
@@ -98,14 +118,14 @@ function getExitAngle(ex, ey, enx, eny, exitVertical) {
 function EdgeLine({ edge, isSelected, onClick }) {
   const src = getNode(edge.from)
   const dst = getNode(edge.to)
-  const { ex, ey, enx, eny, exitVertical } = getExitEntry(src, dst)
+  const { ex, ey, enx, eny, exitVertical } = getExitEntry(src, dst, edge)
   const d = buildElbowPath(ex, ey, enx, eny, exitVertical)
   const { lx, ly } = getLabelPos(ex, ey, enx, eny, exitVertical)
 
   const color = isSelected ? '#3b82f6' : '#94a3b8'
   const labelColor = isSelected ? '#1d4ed8' : '#64748b'
 
-  const entryAngle = getEntryAngle(ex, ey, enx, eny, exitVertical)
+  const entryAngle = getEntryAngle(ex, ey, enx, eny, exitVertical, edge.entryFace)
   const entryTx = enx - 8 * Math.cos(entryAngle)
   const entryTy = eny - 8 * Math.sin(entryAngle)
 
