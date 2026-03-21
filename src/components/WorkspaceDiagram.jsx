@@ -20,7 +20,7 @@ const DIAGRAM = `graph TB
     classDef template fill:#e9c46a,stroke:#f4a261,color:#000
     classDef infra fill:#adb5bd,stroke:#6c757d,color:#000
 
-    subgraph LocalPC["Local PC"]
+    subgraph LocalPC["Local Machine"]
         subgraph DotClaude["~/.claude/"]
             GCL["~/.claude/CLAUDE.md\nTier 2 · Claude Global"]
         end
@@ -86,7 +86,7 @@ const DIAGRAM = `graph TB
             ORG2["sf-ps-dev-org\nPro Suite"]
             ORG3["sf-ss-prd-org (planned)"]
         end
-        VCL["Vercel Production"]
+        VCL["Vercel\nsf-vibe-dashboard.vercel.app"]
     end
 
     Dev([Developer])
@@ -182,7 +182,7 @@ export default function WorkspaceDiagram() {
       <div>
         <h2 className="text-2xl font-bold tracking-tight">AI Workspace</h2>
         <p className="text-muted-foreground text-sm">
-          3-tier governance model · <code className="text-xs bg-muted px-1 py-0.5 rounded">~/AI-Workspace/</code> · Validated 2026-03-21
+          Governance layer — file structure, tier classifications, and AI tool configuration · <code className="text-xs bg-muted px-1 py-0.5 rounded">~/AI-Workspace/</code> · Validated 2026-03-21
         </p>
       </div>
 

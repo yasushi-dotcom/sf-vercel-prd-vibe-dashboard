@@ -11,49 +11,82 @@ function getNode(id) {
 
 // ---- Elbow connector helpers ----
 
-// Determine orthogonal exit/entry points on the node box faces.
-// edge.entryFace / edge.exitFace can override the auto-routing per-edge.
+// Resolve exit and entry points, respecting per-edge face and offset overrides.
+// exitFace/entryFace: 'top'|'bottom'|'left'|'right'
+// exitOffset/entryOffset: shift along the face (x-axis for top/bottom, y-axis for left/right)
 function getExitEntry(src, dst, edge = {}) {
   const hw = NODE_W / 2
   const hh = NODE_H / 2
   const dx = dst.x - src.x
   const dy = dst.y - src.y
+  const exitOff = edge.exitOffset ?? 0
+  const entryOff = edge.entryOffset ?? 0
 
-  if (edge.entryFace) {
-    // Entry point is forced to a specific face
-    const faceMap = {
-      top:    [dst.x,      dst.y - hh],
-      bottom: [dst.x,      dst.y + hh],
-      left:   [dst.x - hw, dst.y     ],
-      right:  [dst.x + hw, dst.y     ],
+  let ex, ey, enx, eny, exitVertical
+
+  // --- Exit point ---
+  if (edge.exitFace) {
+    switch (edge.exitFace) {
+      case 'top':    ex = src.x + exitOff; ey = src.y - hh; break
+      case 'bottom': ex = src.x + exitOff; ey = src.y + hh; break
+      case 'left':   ex = src.x - hw;      ey = src.y + exitOff; break
+      case 'right':  ex = src.x + hw;      ey = src.y + exitOff; break
     }
-    const [enx, eny] = faceMap[edge.entryFace] ?? faceMap.top
-    // Force matching exit axis: vertical entry → vertical exit
-    const exitVertical = edge.entryFace === 'top' || edge.entryFace === 'bottom'
-    const ex = exitVertical ? src.x : (dx >= 0 ? src.x + hw : src.x - hw)
-    const ey = exitVertical ? (dy >= 0 ? src.y + hh : src.y - hh) : src.y
-    return { ex, ey, enx, eny, exitVertical }
+    exitVertical = edge.exitFace === 'top' || edge.exitFace === 'bottom'
+  } else {
+    const autoVertical = edge.entryFace
+      ? (edge.entryFace === 'top' || edge.entryFace === 'bottom')
+      : Math.abs(dy) >= Math.abs(dx)
+    exitVertical = autoVertical
+    if (exitVertical) {
+      ex = src.x + exitOff
+      ey = dy >= 0 ? src.y + hh : src.y - hh
+    } else {
+      ex = dx >= 0 ? src.x + hw : src.x - hw
+      ey = src.y + exitOff
+    }
   }
 
-  // Default: auto-route based on dominant axis
-  const exitVertical = Math.abs(dy) >= Math.abs(dx)
-  let ex, ey, enx, eny
-  if (exitVertical) {
-    ex = src.x
-    ey = dy >= 0 ? src.y + hh : src.y - hh
-    enx = dst.x
-    eny = dy >= 0 ? dst.y - hh : dst.y + hh
+  // --- Entry point ---
+  if (edge.entryFace) {
+    switch (edge.entryFace) {
+      case 'top':    enx = dst.x + entryOff; eny = dst.y - hh; break
+      case 'bottom': enx = dst.x + entryOff; eny = dst.y + hh; break
+      case 'left':   enx = dst.x - hw;       eny = dst.y + entryOff; break
+      case 'right':  enx = dst.x + hw;       eny = dst.y + entryOff; break
+    }
   } else {
-    ex = dx >= 0 ? src.x + hw : src.x - hw
-    ey = src.y
-    enx = dx >= 0 ? dst.x - hw : dst.x + hw
-    eny = dst.y
+    if (exitVertical) {
+      enx = dst.x + entryOff
+      eny = dy >= 0 ? dst.y - hh : dst.y + hh
+    } else {
+      enx = dx >= 0 ? dst.x - hw : dst.x + hw
+      eny = dst.y + entryOff
+    }
   }
+
   return { ex, ey, enx, eny, exitVertical }
 }
 
-// Z-shaped orthogonal path with rounded corners at each bend
-function buildElbowPath(ex, ey, enx, eny, exitVertical, r = 10) {
+// Build orthogonal path. routing: 'Z' (default, 3-seg) | 'L-vertical' | 'L-horizontal'
+function buildElbowPath(ex, ey, enx, eny, exitVertical, r = 10, routing = 'Z') {
+  if (routing === 'L-vertical') {
+    // One bend: vertical first, then horizontal
+    if (Math.abs(eny - ey) < r || Math.abs(enx - ex) < r) return `M ${ex},${ey} V ${eny} H ${enx}`
+    const sy = eny > ey ? 1 : -1
+    const sx = enx > ex ? 1 : -1
+    return [`M ${ex},${ey}`, `V ${eny - sy * r}`, `Q ${ex},${eny} ${ex + sx * r},${eny}`, `H ${enx}`].join(' ')
+  }
+
+  if (routing === 'L-horizontal') {
+    // One bend: horizontal first, then vertical
+    if (Math.abs(enx - ex) < r || Math.abs(eny - ey) < r) return `M ${ex},${ey} H ${enx} V ${eny}`
+    const sx = enx > ex ? 1 : -1
+    const sy = eny > ey ? 1 : -1
+    return [`M ${ex},${ey}`, `H ${enx - sx * r}`, `Q ${enx},${ey} ${enx},${ey + sy * r}`, `V ${eny}`].join(' ')
+  }
+
+  // Default Z-shape (3 segments, mid-point crossing)
   if (exitVertical) {
     if (ex === enx) return `M ${ex},${ey} V ${eny}`
     const midY = (ey + eny) / 2
@@ -85,34 +118,26 @@ function buildElbowPath(ex, ey, enx, eny, exitVertical, r = 10) {
   }
 }
 
-// Label sits at the midpoint of the middle (crossing) segment
-function getLabelPos(ex, ey, enx, eny, exitVertical) {
-  if (exitVertical) {
-    return { lx: (ex + enx) / 2, ly: (ey + eny) / 2 }
-  }
+// Label at the midpoint of the crossing segment
+function getLabelPos(ex, ey, enx, eny) {
   return { lx: (ex + enx) / 2, ly: (ey + eny) / 2 }
 }
 
-// Direction angle the path arrives at the entry point (last segment direction)
-function getEntryAngle(ex, ey, enx, eny, exitVertical, entryFace) {
-  if (entryFace) {
-    return { top: Math.PI / 2, bottom: -Math.PI / 2, left: 0, right: Math.PI }[entryFace] ?? Math.PI / 2
-  }
-  if (exitVertical) {
-    const sy2 = eny > (ey + eny) / 2 ? 1 : -1
-    return sy2 * Math.PI / 2
-  }
+// Angle the path arrives at the entry point (direction of last segment)
+function getEntryAngle(ex, ey, enx, eny, exitVertical, entryFace, routing) {
+  if (routing === 'L-vertical')   return enx > ex ? 0 : Math.PI
+  if (routing === 'L-horizontal') return eny > ey ? Math.PI / 2 : -Math.PI / 2
+  if (entryFace) return { top: Math.PI / 2, bottom: -Math.PI / 2, left: 0, right: Math.PI }[entryFace] ?? Math.PI / 2
+  if (exitVertical) return (eny > (ey + eny) / 2 ? 1 : -1) * Math.PI / 2
   return enx > (ex + enx) / 2 ? 0 : Math.PI
 }
 
-// Direction the path leaves the exit point — reversed for the bidirectional src arrow
-function getExitAngle(ex, ey, enx, eny, exitVertical) {
-  if (exitVertical) {
-    const sy1 = (ey + eny) / 2 > ey ? 1 : -1
-    return -sy1 * Math.PI / 2
-  }
-  const sx1 = (ex + enx) / 2 > ex ? 1 : -1
-  return sx1 > 0 ? Math.PI : 0
+// Angle the path leaves the exit point — reversed for the bidirectional src arrow
+function getExitAngle(ex, ey, enx, eny, exitVertical, exitFace, routing) {
+  if (routing === 'L-vertical')   return eny > ey ? -Math.PI / 2 : Math.PI / 2
+  if (exitFace) return { top: Math.PI / 2, bottom: -Math.PI / 2, left: 0, right: Math.PI }[exitFace] ?? -Math.PI / 2
+  if (exitVertical) return -((ey + eny) / 2 > ey ? 1 : -1) * Math.PI / 2
+  return (ex + enx) / 2 > ex ? Math.PI : 0
 }
 
 function EdgeLine({ edge, isSelected, onClick }) {
@@ -356,7 +381,7 @@ export default function ArchitectureDiagram() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">System Architecture</h2>
-          <p className="text-muted-foreground text-sm">Click a system box or connection line to see details</p>
+          <p className="text-muted-foreground text-sm">Infrastructure layer — systems, APIs, and deployment flows · Click a box or connection to see details</p>
         </div>
         <div className="flex items-center gap-3 pt-1 shrink-0">
           {lastChecked && (
