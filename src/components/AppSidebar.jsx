@@ -9,7 +9,7 @@ import {
   SidebarMenuItem,
   SidebarHeader,
 } from '@/components/ui/sidebar'
-import { GitBranch, Network } from 'lucide-react'
+import { GitBranch, Network, Layers } from 'lucide-react'
 
 export default function AppSidebar({ repos, selectedRepo, onSelectRepo, view, onSelectView }) {
   return (
@@ -36,6 +36,15 @@ export default function AppSidebar({ repos, selectedRepo, onSelectRepo, view, on
                   <span>Architecture</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={view === 'workspace'}
+                  onClick={() => onSelectView('workspace')}
+                >
+                  <Layers className="h-4 w-4" />
+                  <span>AI Workspace</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -46,7 +55,7 @@ export default function AppSidebar({ repos, selectedRepo, onSelectRepo, view, on
               {repos.map((repo) => (
                 <SidebarMenuItem key={repo.name}>
                   <SidebarMenuButton
-                    isActive={view !== 'architecture' && selectedRepo?.name === repo.name}
+                    isActive={view == null && selectedRepo?.name === repo.name}
                     onClick={() => onSelectRepo(repo)}
                   >
                     <span>{repo.label}</span>

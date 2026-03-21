@@ -4,6 +4,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import AppSidebar from '@/components/AppSidebar'
 import Dashboard from '@/components/Dashboard'
 import ArchitectureDiagram from '@/components/ArchitectureDiagram'
+import WorkspaceDiagram from '@/components/WorkspaceDiagram'
 
 export default function App() {
   const [repos, setRepos] = useState([])
@@ -35,6 +36,8 @@ export default function App() {
   let mainContent
   if (view === 'architecture') {
     mainContent = <ArchitectureDiagram />
+  } else if (view === 'workspace') {
+    mainContent = <WorkspaceDiagram />
   } else if (selectedRepo) {
     mainContent = <Dashboard repo={selectedRepo} />
   } else {
