@@ -104,12 +104,12 @@ export const nodes = [
     label: 'SF Starter Prod',
     sublabel: 'ss-prd · Starter Suite',
     layer: 'Platform',
-    status: 'ready',
+    status: 'planned',
     x: 940, y: 520,
     detail: {
       tech: ['Salesforce Starter Suite'],
       apis: ['Metadata API', 'REST API'],
-      notes: 'Starter Suite production org (alias: ss-prd). Confirmed connected. Retrieve only — deployment not yet validated. Codex workstream setup in progress.',
+      notes: 'Starter Suite production org (alias: ss-prd). Org confirmed connected. Retrieve only — deployment not yet validated. Codex workstream setup in progress.',
     },
   },
 ]
