@@ -102,15 +102,14 @@ export const nodes = [
   {
     id: 'sf-starter',
     label: 'SF Starter Prod',
-    sublabel: 'planned',
+    sublabel: 'ss-prd · Starter Suite',
     layer: 'Platform',
-    status: 'planned',
+    status: 'ready',
     x: 940, y: 520,
-    planned: true,
     detail: {
       tech: ['Salesforce Starter Suite'],
-      apis: ['REST API'],
-      notes: 'Planned production org — not yet active.',
+      apis: ['Metadata API', 'REST API'],
+      notes: 'Starter Suite production org (alias: ss-prd). Confirmed connected. Codex workstream setup in progress.',
     },
   },
 ]
@@ -122,6 +121,8 @@ export const edges = [
     to: 'github',
     label: 'REST / Webhooks',
     bidirectional: true,
+    // Enter GitHub right face offset up — separates from local-github (y=235) and claude-github (y=249)
+    entryOffset: -18,
     detail: {
       protocol: 'HTTPS',
       auth: 'GitHub Token (Vercel env var) + Webhook secret',
@@ -135,6 +136,7 @@ export const edges = [
     to: 'github',
     label: 'SSH / HTTPS',
     bidirectional: true,
+    // Exits Local left at y=235 center — anchor for the other offset exits
     detail: {
       protocol: 'SSH / HTTPS',
       auth: 'SSH key + GitHub PAT',
@@ -148,6 +150,8 @@ export const edges = [
     to: 'claude',
     label: 'Claude Code',
     bidirectional: true,
+    // Exit Local left shifted down (+24) so it doesn't share the same exit point as local-github
+    exitOffset: 24,
     detail: {
       protocol: 'Local process (stdin/stdout + API)',
       auth: 'Anthropic API key (env var)',
@@ -161,6 +165,10 @@ export const edges = [
     to: 'sf-ep',
     label: 'SF CLI',
     bidirectional: true,
+    // Exit Local left shifted up (-16); enter SF EP from its left face.
+    // Routes through x=460 which is left of Claude box — avoids crossing Claude.
+    exitOffset: -16,
+    entryFace: 'left',
     detail: {
       protocol: 'REST / Metadata API',
       auth: 'OAuth2 (SF CLI login)',
@@ -174,6 +182,12 @@ export const edges = [
     to: 'sf-ps',
     label: 'SF CLI',
     bidirectional: true,
+    // Exit Local bottom (x=840, avoiding SF Starter box at x=860+),
+    // go straight down then left to SF PS right face — bypasses Claude entirely.
+    exitFace: 'bottom',
+    exitOffset: -20,
+    entryFace: 'right',
+    routing: 'L-vertical',
     detail: {
       protocol: 'REST / Metadata API',
       auth: 'OAuth2 (SF CLI login)',
@@ -186,6 +200,8 @@ export const edges = [
     from: 'claude',
     to: 'github',
     label: 'GitHub MCP',
+    // Enter GitHub right face offset down (+14) — separates from local-github (y=235)
+    entryOffset: 14,
     detail: {
       protocol: 'MCP → GitHub REST API',
       auth: 'GitHub PAT (in .mcp.json)',
@@ -198,6 +214,8 @@ export const edges = [
     from: 'claude',
     to: 'sf-ep',
     label: 'SF MCP',
+    // Exit Claude bottom offset left (-16); enter SF EP top — separates from claude-sf-ps exit
+    exitOffset: -16,
     entryFace: 'top',
     detail: {
       protocol: 'MCP → Salesforce REST/Metadata API',
@@ -211,6 +229,8 @@ export const edges = [
     from: 'claude',
     to: 'sf-ps',
     label: 'SF MCP',
+    // Exit Claude bottom offset right (+16) — separates from claude-sf-ep exit
+    exitOffset: 16,
     detail: {
       protocol: 'MCP → Salesforce REST/Metadata API',
       auth: 'OAuth2 (via SF CLI)',
