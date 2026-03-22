@@ -109,7 +109,7 @@ export const nodes = [
     detail: {
       tech: ['Salesforce Starter Suite'],
       apis: ['Metadata API', 'REST API'],
-      notes: 'Starter Suite production org (alias: ss-prd). Confirmed connected. Codex workstream setup in progress.',
+      notes: 'Starter Suite production org (alias: ss-prd). Confirmed connected. Retrieve only — deployment not yet validated. Codex workstream setup in progress.',
     },
   },
 ]
@@ -222,6 +222,22 @@ export const edges = [
       auth: 'OAuth2 (via SF CLI)',
       direction: 'Claude → SF org',
       notes: 'SOQL queries, metadata operations, org inspection via Salesforce MCP server.',
+    },
+  },
+  {
+    id: 'local-sf-starter',
+    from: 'local',
+    to: 'sf-starter',
+    label: 'SF CLI (retrieve only)',
+    bidirectional: false,
+    exitFace: 'bottom',
+    exitOffset: 20,
+    entryFace: 'top',
+    detail: {
+      protocol: 'REST / Metadata API',
+      auth: 'OAuth2 (SF CLI login, alias: ss-prd)',
+      direction: 'Local ← SF Starter Prod (retrieve only)',
+      notes: 'Metadata retrieved once from Starter Suite production. Deployment not yet validated — extraction only for now.',
     },
   },
   {
